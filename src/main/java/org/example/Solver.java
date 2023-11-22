@@ -1,89 +1,108 @@
 package org.example;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.util.*;
 
+//make this class into a singleton
 public class Solver {
-    private List<String>[] wordBanks;
+    private static Solver instance;
+    public ArrayList<String> wordBank = new ArrayList<>();
+    private Solver() {
+        loadWordBank();
+    }
+    public static Solver getInstance() {
+        if (instance == null)
+        {
+            instance = new Solver();
+        }
+        return instance;
+    }
 
-    @SuppressWarnings("unchecked")
-    public Solver(List<String> initialWordBank) {
-        this.wordBanks = (List<String>[]) new List[4];
-        for (int i = 0; i < wordBanks.length; i++) {
-            this.wordBanks[i] = new ArrayList<>(initialWordBank); //initialize each quadrant with its own wordBank
+    private void loadWordBank() {
+        try {
+            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("word-bank.txt");
+            Scanner scanner = new Scanner(inputStream);
+            while (scanner.hasNextLine()) {
+                String word = scanner.nextLine().trim();
+                if (!word.isEmpty()) {
+                    wordBank.add(word);
+                }
+            }
+            scanner.close();
+        } catch (Exception e) {
+            System.err.println("Error loading word-bank.txt: " + e.getMessage());
         }
     }
-    public List<String> filterWordList(
-            int quadrant,
-            String userGuess,
-            List<Integer> validCharPositions,
-            List<Integer> charWrongIndexPositions,
-            List<Character> greyLetters
-    ) {
-        List<String> filteredWords = new ArrayList<>(this.wordBanks[quadrant]);
-        List<String> validWords = new ArrayList<>();
 
-        for (String word : filteredWords) {
-            boolean isValidWord = true;
+    public List<String> wordleSolver(HashMap<Character, List<Integer>> greenChar,
+                                     HashMap<Character, List<Integer>> yellowChar,
+                                     HashMap<Character, List<Integer>> greyChar) {
 
-            // Check for grey letters
-            for (char greyLetter : greyLetters) {
-                if (word.indexOf(greyLetter) != -1) {
-                    isValidWord = false;
-                    break;
-                }
-            }
+        List<String> validWords = filterGreenCharacters(greenChar);
+        List<String> filteredYellow = filterYellowCharacters(yellowChar, validWords);
+        List<String> filteredGrey = filterGreyCharacters(greyChar, filteredYellow);
 
-            // Check for green indices
-            if (isValidWord) {
-                for (int index : validCharPositions) {
-                    if (userGuess.charAt(index) != 0 && word.charAt(index) != userGuess.charAt(index)) {
-                        isValidWord = false;
+        return filteredGrey;
+    }
+
+    public List<String> filterGreenCharacters(HashMap<Character, List<Integer>> greenChar) {
+        ArrayList<String> validWords = new ArrayList<>();
+        for (String word : wordBank) {
+            boolean greenValid = true;
+            for (Map.Entry<Character, List<Integer>> entry : greenChar.entrySet()) {
+                for (Integer index : entry.getValue()) {
+                    if (word.charAt(index) != entry.getKey()) {
+                        greenValid = false;
                         break;
                     }
                 }
+                if (!greenValid) break;
             }
-
-            // Check for yellow indices
-            if (isValidWord) {
-                for (int index : charWrongIndexPositions) {
-                    if (word.indexOf(userGuess.charAt(index)) == -1 || word.charAt(index) == userGuess.charAt(index)) {
-                        isValidWord = false;
-                        break;
-                    }
-                }
-            }
-
-            if (isValidWord) {
-                validWords.add(word);
-            }
+            if (greenValid) validWords.add(word);
         }
-
         return validWords;
     }
 
-    //suggests a random word from validWords list
-    public List<String> quorateSuggester(
-            int quadrant,
-            String userGuess,
-            List<Integer> validCharPositions,
-            List<Integer> charWrongIndexPositions,
-            List<Character> greyLetters
-    ) {
-        List<String> validWords = filterWordList(
-                quadrant,
-                userGuess,
-                validCharPositions,
-                charWrongIndexPositions,
-                greyLetters
-        );
-
-        if (validWords.isEmpty()) {
-            throw new IllegalStateException("No valid words found.");
+    public List<String> filterYellowCharacters(HashMap<Character, List<Integer>> yellowChar, List<String> words) {
+        List<String> filteredYellow = new ArrayList<>();
+        for (String word : words) {
+            boolean yellowValid = true;
+            for (Map.Entry<Character, List<Integer>> entry : yellowChar.entrySet()) {
+                for (Integer index : entry.getValue()) {
+                    if (word.charAt(index) == entry.getKey() || !word.contains(String.valueOf(entry.getKey()))) {
+                        yellowValid = false;
+                        break;
+                    }
+                }
+                if (yellowValid) {
+                    filteredYellow.add(word);
+                    break;
+                }
+            }
         }
-
-        // Select a random word to return
-        int randomIndex = (int) (Math.random() * validWords.size());
-        return List.of(validWords.get(randomIndex)); // Return as a list containing only the selected word
+        return filteredYellow;
     }
+
+    public List<String> filterGreyCharacters(HashMap<Character, List<Integer>> greyChar, List<String> words) {
+        List<String> filteredGrey = new ArrayList<>();
+        for (String word : words) {
+            boolean greyValid = true;
+            outerLoop:
+            for (Map.Entry<Character, List<Integer>> entry : greyChar.entrySet()) {
+                for (Integer index : entry.getValue()) {
+                    if (word.charAt(index) == entry.getKey()) {
+                        greyValid = false;
+                        break outerLoop;
+                    }
+                }
+            }
+            if (greyValid) {
+                filteredGrey.add(word);
+            }
+        }
+        return filteredGrey;
+    }
+
 }
