@@ -42,7 +42,7 @@ public class Solver {
 
         List<String> validWords = filterGreenCharacters(greenChar);
         List<String> filteredYellow = filterYellowCharacters(yellowChar, validWords);
-        List<String> filteredGrey = filterGreyCharacters(greyChar, filteredYellow);
+        List<String> filteredGrey = filterGreyCharacters(greyChar, greenChar, yellowChar, filteredYellow);
 
         return filteredGrey;
     }
@@ -76,21 +76,29 @@ public class Solver {
                         break;
                     }
                 }
-                if (yellowValid) {
-                    filteredYellow.add(word);
-                    break;
-                }
+                if (!yellowValid) break;
+            }
+            if (yellowValid) {
+                filteredYellow.add(word);
             }
         }
-        return filteredYellow;
+        return filteredYellow.isEmpty() ? words : filteredYellow;
     }
 
-    public List<String> filterGreyCharacters(HashMap<Character, List<Integer>> greyChar, List<String> words) {
+
+    public List<String> filterGreyCharacters(HashMap<Character, List<Integer>> greyChar,
+                                             HashMap<Character, List<Integer>> greenChar,
+                                             HashMap<Character, List<Integer>> yellowChar,
+                                             List<String> words) {
+        HashMap<Character, List<Integer>> filteredGreyChar = new HashMap<>(greyChar);
+        greenChar.keySet().forEach(filteredGreyChar::remove);
+        yellowChar.keySet().forEach(filteredGreyChar::remove);
+
         List<String> filteredGrey = new ArrayList<>();
         for (String word : words) {
             boolean greyValid = true;
             outerLoop:
-            for (Map.Entry<Character, List<Integer>> entry : greyChar.entrySet()) {
+            for (Map.Entry<Character, List<Integer>> entry : filteredGreyChar.entrySet()) {
                 for (Integer index : entry.getValue()) {
                     if (word.charAt(index) == entry.getKey()) {
                         greyValid = false;
@@ -102,7 +110,7 @@ public class Solver {
                 filteredGrey.add(word);
             }
         }
-        return filteredGrey;
+        return filteredGrey.isEmpty() ? words : filteredGrey;
     }
 
 }
